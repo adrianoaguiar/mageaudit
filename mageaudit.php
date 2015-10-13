@@ -23,6 +23,8 @@
 * @license   http://www.apache.org/licenses/LICENSE-2.0 Apache License 2.0
 */
 
+ini_set('display_errors', 1);
+
 // Initialize Magento
 require 'app/Mage.php';
 Mage::app('admin', 'store');
@@ -101,7 +103,11 @@ function getRewrites($classType, $sorted = true)
             foreach ($models as $package => $config) {
                 if (isset($config['rewrite'])) {
                     foreach ($config['rewrite'] as $alias => $class) {
-                        $classAlias = $package . '/' . $alias;
+                        if (!empty($config['class'])) {
+                            $classAlias = $config['class'] . '_' . uc_words($alias);
+                        } else {
+                            $classAlias = $package . '/' . $alias;
+                        }
                         $rewrites[$classAlias] = array(
                             'alias' => $classAlias,
                             'class' => $class
@@ -602,6 +608,37 @@ $counts = array(
     </tr>
 </table>
 
+<?php foreach ($systemRewrites as $type => $rewrites): ?>
+<h3><?php echo ucwords($type) ?> Rewrites</h3>
+<table>
+    <tr>
+        <th>Original</th>
+        <th>Rewritten to</th>
+        <?php if (isset($_GET['methods'])): ?>
+        <th>Methods</th>
+        <?php endif ?>
+    </tr>
+    <?php foreach ($rewrites as $rewrite): ?>
+    <tr>
+        <td><?php echo $rewrite['alias']; ?></td>
+        <td><?php echo $rewrite['class']; ?></td>
+        <?php if (isset($_GET['methods'])): ?>
+            <td>
+            <?php $methods = getOverridenMethods($rewrite['class']); ?>
+            <?php if (count($methods)): ?>
+            <ul>
+                <?php foreach ($methods as $method): ?>
+                <li><?php echo $method; ?></li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+            </td>
+        <?php endif; ?>
+    </tr>
+    <?php endforeach; ?>
+</table>
+<?php endforeach ?>
+
 <?php foreach ($codePools as $codePoolType => $modules): ?>
     <?php if ($codePoolType == 'core') continue; ?>
     <h3><?php echo ucwords($codePoolType); ?> code pool</h3>
@@ -629,11 +666,20 @@ $counts = array(
             <?php foreach ($moduleRewrites as $rewriteType => $rewrites): ?>
                 <?php if (isset($rewrites[$moduleName]) && count($rewrites[$moduleName])): ?>
                     <p class="rewrite">Rewritten <?php echo ucwords($rewriteType); ?>:</p>
-                    <ul>
-                    <?php foreach ($rewrites[$moduleName] as $rewrite): ?>
-                        <li>
-                            <?php echo $rewrite['alias']; ?> =&gt; <?php echo $rewrite['class']; ?>
+                    <table>
+                        <tr>
+                            <th>Original</th>
+                            <th>Rewritten to</th>
                             <?php if (isset($_GET['methods'])): ?>
+                            <th>Methods</th>
+                            <?php endif ?>
+                        </tr>
+                        <?php foreach ($rewrites[$moduleName] as $rewrite): ?>
+                        <tr>
+                            <td><?php echo $rewrite['alias']; ?></td>
+                            <td><?php echo $rewrite['class']; ?></td>
+                            <?php if (isset($_GET['methods'])): ?>
+                                <td>
                                 <?php $methods = getOverridenMethods($rewrite['class']); ?>
                                 <?php if (count($methods)): ?>
                                 <ul>
@@ -642,16 +688,17 @@ $counts = array(
                                     <?php endforeach; ?>
                                 </ul>
                                 <?php endif; ?>
+                                </td>
                             <?php endif; ?>
-                        </li>
-                    <?php endforeach; ?>
-                    </ul>
+                        </tr>
+                        <?php endforeach; ?>
+                    </table>
                 <?php endif; ?>
             <?php endforeach; ?>
         </div>
         <?php endforeach; ?>
     <?php else: ?>
-        <p>No modules found</p>
+    <p>No modules found</p>
     <?php endif; ?>
 <?php endforeach; ?>
 </body>
