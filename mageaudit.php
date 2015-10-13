@@ -30,6 +30,55 @@ require 'app/Mage.php';
 Mage::app('admin', 'store');
 
 /**
+ * Get applied patches
+ *
+ * @see https://github.com/philwinkle/Philwinkle_AppliedPatches/blob/master/app/code/community/Philwinkle/AppliedPatches/Model/Patches.php
+ *
+ * Copyright (c) 2015 Philwinkle LLC / Phillip Jackson
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @return array
+ */
+function getPatches()
+{
+    $allPatches = $revertedPatches = array();
+    $patchList  = Mage::getBaseDir('etc') . DS . 'applied.patches.list';
+    $ioAdapter  = new Varien_Io_File();
+    if ($ioAdapter->fileExists($patchList)) {
+        $ioAdapter->open(array('path' => $ioAdapter->dirname($patchList)));
+        $ioAdapter->streamOpen($patchList, 'r');
+        while ($buffer = $ioAdapter->streamRead()) {
+            if(stristr($buffer,'|') && stristr($buffer,'SUPEE')){
+                list($date, $patch) = array_map('trim', explode('|', $buffer));
+                $allPatches[$patch] = $patch;                    
+                if(stristr($buffer,'REVERTED')){
+                    $revertedPatches[$patch] = $patch;
+                }
+            }
+        }
+        $ioAdapter->streamClose();
+    }
+    return array_diff($allPatches, $revertedPatches);
+}
+
+/**
  * Get module rewrites
  * 
  * @param  string  $classType
@@ -365,6 +414,8 @@ foreach ($rewriteTypes as $rewriteType) {
     }
 }
 
+$patches = getPatches();
+
 ?>
 <html>
 <head>
@@ -431,8 +482,10 @@ foreach ($rewriteTypes as $rewriteType) {
     </style>
 </head>
 <body>
+
 <h1>Magento Audit</h1>
 <ul id="nav">
+    <li><a href="#version">Version</a></li>
     <li><a href="#stats">Statistics</a></li>
     <li><a href="#stores">Stores</a></li>
     <li><a href="#cache">Cache</a></li>
@@ -440,6 +493,18 @@ foreach ($rewriteTypes as $rewriteType) {
     <li><a href="#observers">Observers</a></li>
     <li><a href="#modules">Modules</a></li>
 </ul>
+
+<h2 id="version">Version</h2>
+<p><?php echo Mage::getEdition() ?> <?php echo Mage::getVersion() ?></p>
+<?php if (count($patches)): ?>
+<h3>Applied Patches</h3>
+<ul>
+    <?php foreach ($patches as $patch): ?>
+    <li><?php echo $patch ?></li>
+    <?php endforeach ?>
+</ul>
+<?php endif ?>
+
 <h2 id="stats">Statistics</h2>
 <?php 
 $counts = array(
